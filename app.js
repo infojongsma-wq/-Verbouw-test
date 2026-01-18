@@ -76,6 +76,8 @@ klusForm.addEventListener('submit', (e) => {
         id: generateId(),
         naam: document.getElementById('klus-naam').value.trim(),
         datum: document.getElementById('klus-datum').value,
+        einddatum: document.getElementById('klus-einddatum').value || null,
+        duur: document.getElementById('klus-duur').value || null,
         budget: parseFloat(document.getElementById('klus-budget').value),
         uitvoerder: document.getElementById('klus-uitvoerder').value.trim(),
         status: document.getElementById('klus-status').value,
@@ -153,6 +155,20 @@ function createKlusCard(klus) {
         ? `<div class="klus-notities">${escapeHtml(klus.notities)}</div>`
         : '';
 
+    const einddatumHtml = klus.einddatum
+        ? `<div class="klus-detail">
+                <span class="klus-detail-label">Einddatum</span>
+                <span class="klus-detail-value">${formatDate(klus.einddatum)}</span>
+            </div>`
+        : '';
+
+    const duurHtml = klus.duur
+        ? `<div class="klus-detail">
+                <span class="klus-detail-label">Duur</span>
+                <span class="klus-detail-value">${escapeHtml(klus.duur)}</span>
+            </div>`
+        : '';
+
     card.innerHTML = `
         <div class="klus-header">
             <div>
@@ -162,9 +178,11 @@ function createKlusCard(klus) {
         </div>
         <div class="klus-details">
             <div class="klus-detail">
-                <span class="klus-detail-label">Datum</span>
+                <span class="klus-detail-label">Startdatum</span>
                 <span class="klus-detail-value">${formatDate(klus.datum)}</span>
             </div>
+            ${einddatumHtml}
+            ${duurHtml}
             <div class="klus-detail">
                 <span class="klus-detail-label">Budget</span>
                 <span class="klus-detail-value">${formatCurrency(klus.budget)}</span>
@@ -225,6 +243,8 @@ function openEditModal(id) {
     document.getElementById('edit-id').value = klus.id;
     document.getElementById('edit-naam').value = klus.naam;
     document.getElementById('edit-datum').value = klus.datum;
+    document.getElementById('edit-einddatum').value = klus.einddatum || '';
+    document.getElementById('edit-duur').value = klus.duur || '';
     document.getElementById('edit-budget').value = klus.budget;
     document.getElementById('edit-uitvoerder').value = klus.uitvoerder;
     document.getElementById('edit-status').value = klus.status;
@@ -267,6 +287,8 @@ editForm.addEventListener('submit', (e) => {
         ...klussen[klusIndex],
         naam: document.getElementById('edit-naam').value.trim(),
         datum: document.getElementById('edit-datum').value,
+        einddatum: document.getElementById('edit-einddatum').value || null,
+        duur: document.getElementById('edit-duur').value || null,
         budget: parseFloat(document.getElementById('edit-budget').value),
         uitvoerder: document.getElementById('edit-uitvoerder').value.trim(),
         status: document.getElementById('edit-status').value,

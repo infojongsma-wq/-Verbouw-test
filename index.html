@@ -58,6 +58,14 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="klus-werkelijk">Werkelijke kosten (&euro;) (optioneel)</label>
+                        <input type="number" id="klus-werkelijk" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group"></div>
+                </div>
+
                 <div class="form-group">
                     <label for="klus-uitvoerder">Wie doet de klus?</label>
                     <input type="text" id="klus-uitvoerder" required placeholder="Bijv. Zelf, Aannemer Jan, etc.">
@@ -81,10 +89,43 @@
             </form>
         </section>
 
+        <section class="totaal-budget-section">
+            <h2>Verbouwing Budget</h2>
+            <div class="totaal-budget-input">
+                <div class="form-group">
+                    <label for="totaal-budget-input">Totaal Budget Verbouwing (&euro;)</label>
+                    <input type="number" id="totaal-budget-input" min="0" step="0.01" placeholder="Bijv. 50000">
+                </div>
+            </div>
+            <div class="budget-overview">
+                <div class="budget-card">
+                    <h4>Totaal Budget</h4>
+                    <p id="display-totaal-budget">&euro; 0,00</p>
+                </div>
+                <div class="budget-card" id="uitgegeven-card">
+                    <h4>Uitgegeven</h4>
+                    <p id="display-uitgegeven">&euro; 0,00</p>
+                </div>
+                <div class="budget-card" id="resterend-card">
+                    <h4>Resterend</h4>
+                    <p id="display-resterend">&euro; 0,00</p>
+                </div>
+            </div>
+            <div class="budget-progress">
+                <div class="budget-progress-label">
+                    <span>Voortgang</span>
+                    <span id="budget-percentage">0%</span>
+                </div>
+                <div class="budget-progress-bar">
+                    <div class="budget-progress-fill" id="budget-progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </section>
+
         <section class="stats-section">
             <div class="stat-card">
-                <h3>Totaal Budget</h3>
-                <p id="totaal-budget">&euro; 0,00</p>
+                <h3>Budget Klussen</h3>
+                <p id="totaal-budget-klussen">&euro; 0,00</p>
             </div>
             <div class="stat-card">
                 <h3>Aantal Klussen</h3>
@@ -170,6 +211,14 @@
                         <label for="edit-budget">Budget (&euro;)</label>
                         <input type="number" id="edit-budget" required min="0" step="0.01">
                     </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-werkelijk">Werkelijke kosten (&euro;) (optioneel)</label>
+                        <input type="number" id="edit-werkelijk" min="0" step="0.01">
+                    </div>
+                    <div class="form-group"></div>
                 </div>
 
                 <div class="form-group">

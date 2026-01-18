@@ -11,18 +11,31 @@ const filterStatus = document.getElementById('filter-status');
 const filterSort = document.getElementById('filter-sort');
 
 // Stats elements
-const totaalBudgetEl = document.getElementById('totaal-budget');
+const totaalBudgetKlussenEl = document.getElementById('totaal-budget-klussen');
 const aantalKlussenEl = document.getElementById('aantal-klussen');
 const afgerondKlussenEl = document.getElementById('afgerond-klussen');
 
+// Budget overview elements
+const totaalBudgetInput = document.getElementById('totaal-budget-input');
+const displayTotaalBudget = document.getElementById('display-totaal-budget');
+const displayUitgegeven = document.getElementById('display-uitgegeven');
+const displayResterend = document.getElementById('display-resterend');
+const budgetPercentage = document.getElementById('budget-percentage');
+const budgetProgressFill = document.getElementById('budget-progress-fill');
+const uitgegvenCard = document.getElementById('uitgegeven-card');
+const resterendCard = document.getElementById('resterend-card');
+
 // Data storage
 let klussen = [];
+let totaalBudgetVerbouwing = 0;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     loadKlussen();
+    loadTotaalBudget();
     renderKlussen();
     updateStats();
+    updateBudgetOverview();
     setDefaultDate();
 });
 
@@ -44,6 +57,27 @@ function loadKlussen() {
 function saveKlussen() {
     localStorage.setItem('verbouwing-klussen', JSON.stringify(klussen));
 }
+
+// Load totaal budget from localStorage
+function loadTotaalBudget() {
+    const stored = localStorage.getItem('verbouwing-totaal-budget');
+    if (stored) {
+        totaalBudgetVerbouwing = parseFloat(stored);
+        totaalBudgetInput.value = totaalBudgetVerbouwing;
+    }
+}
+
+// Save totaal budget to localStorage
+function saveTotaalBudget() {
+    localStorage.setItem('verbouwing-totaal-budget', totaalBudgetVerbouwing.toString());
+}
+
+// Totaal budget input handler
+totaalBudgetInput.addEventListener('input', () => {
+    totaalBudgetVerbouwing = parseFloat(totaalBudgetInput.value) || 0;
+    saveTotaalBudget();
+    updateBudgetOverview();
+});
 
 // Generate unique ID
 function generateId() {
@@ -72,6 +106,8 @@ function formatDate(dateString) {
 klusForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
+    const werkelijkValue = document.getElementById('klus-werkelijk').value;
+
     const klus = {
         id: generateId(),
         naam: document.getElementById('klus-naam').value.trim(),
@@ -79,6 +115,7 @@ klusForm.addEventListener('submit', (e) => {
         einddatum: document.getElementById('klus-einddatum').value || null,
         duur: document.getElementById('klus-duur').value || null,
         budget: parseFloat(document.getElementById('klus-budget').value),
+        werkelijk: werkelijkValue ? parseFloat(werkelijkValue) : null,
         uitvoerder: document.getElementById('klus-uitvoerder').value.trim(),
         status: document.getElementById('klus-status').value,
         notities: document.getElementById('klus-notities').value.trim(),
@@ -89,6 +126,7 @@ klusForm.addEventListener('submit', (e) => {
     saveKlussen();
     renderKlussen();
     updateStats();
+    updateBudgetOverview();
 
     // Reset form
     klusForm.reset();
@@ -169,6 +207,23 @@ function createKlusCard(klus) {
             </div>`
         : '';
 
+    // Budget en werkelijk met duimpje indicator
+    let werkelijkHtml = '';
+    if (klus.werkelijk !== null && klus.werkelijk !== undefined) {
+        const isOverBudget = klus.werkelijk > klus.budget;
+        const indicatorClass = isOverBudget ? 'over-budget' : 'within-budget';
+        const thumb = isOverBudget ? '👎' : '👍';
+
+        werkelijkHtml = `
+            <div class="klus-detail">
+                <span class="klus-detail-label">Werkelijk</span>
+                <div class="budget-indicator ${indicatorClass}">
+                    <span class="klus-detail-value">${formatCurrency(klus.werkelijk)}</span>
+                    <span class="thumb">${thumb}</span>
+                </div>
+            </div>`;
+    }
+
     card.innerHTML = `
         <div class="klus-header">
             <div>
@@ -187,6 +242,7 @@ function createKlusCard(klus) {
                 <span class="klus-detail-label">Budget</span>
                 <span class="klus-detail-value">${formatCurrency(klus.budget)}</span>
             </div>
+            ${werkelijkHtml}
             <div class="klus-detail">
                 <span class="klus-detail-label">Uitvoerder</span>
                 <span class="klus-detail-value">${escapeHtml(klus.uitvoerder)}</span>
@@ -216,13 +272,54 @@ function capitalizeFirst(str) {
 
 // Update statistics
 function updateStats() {
-    const totaalBudget = klussen.reduce((sum, k) => sum + k.budget, 0);
+    const totaalBudgetKlussen = klussen.reduce((sum, k) => sum + k.budget, 0);
     const aantalKlussen = klussen.length;
     const afgerondKlussen = klussen.filter(k => k.status === 'afgerond').length;
 
-    totaalBudgetEl.textContent = formatCurrency(totaalBudget);
+    totaalBudgetKlussenEl.textContent = formatCurrency(totaalBudgetKlussen);
     aantalKlussenEl.textContent = aantalKlussen;
     afgerondKlussenEl.textContent = afgerondKlussen;
+}
+
+// Update budget overview
+function updateBudgetOverview() {
+    // Bereken totaal uitgegeven (werkelijke kosten als ingevuld, anders budget)
+    const totaalUitgegeven = klussen.reduce((sum, k) => {
+        if (k.werkelijk !== null && k.werkelijk !== undefined) {
+            return sum + k.werkelijk;
+        }
+        return sum;
+    }, 0);
+
+    const resterend = totaalBudgetVerbouwing - totaalUitgegeven;
+    const percentage = totaalBudgetVerbouwing > 0
+        ? Math.min((totaalUitgegeven / totaalBudgetVerbouwing) * 100, 100)
+        : 0;
+
+    // Update displays
+    displayTotaalBudget.textContent = formatCurrency(totaalBudgetVerbouwing);
+    displayUitgegeven.textContent = formatCurrency(totaalUitgegeven);
+    displayResterend.textContent = formatCurrency(resterend);
+
+    // Update percentage en progress bar
+    budgetPercentage.textContent = `${Math.round(percentage)}%`;
+    budgetProgressFill.style.width = `${Math.min(percentage, 100)}%`;
+
+    // Update kleuren gebaseerd op budget status
+    if (resterend < 0) {
+        resterendCard.classList.add('negative');
+        resterendCard.classList.remove('positive');
+        budgetProgressFill.classList.add('over-budget');
+    } else {
+        resterendCard.classList.remove('negative');
+        resterendCard.classList.add('positive');
+        budgetProgressFill.classList.remove('over-budget');
+    }
+
+    // Als meer dan budget uitgegeven
+    if (totaalUitgegeven > totaalBudgetVerbouwing && totaalBudgetVerbouwing > 0) {
+        budgetProgressFill.style.width = '100%';
+    }
 }
 
 // Delete klus
@@ -232,6 +329,7 @@ function deleteKlus(id) {
         saveKlussen();
         renderKlussen();
         updateStats();
+        updateBudgetOverview();
     }
 }
 
@@ -246,6 +344,7 @@ function openEditModal(id) {
     document.getElementById('edit-einddatum').value = klus.einddatum || '';
     document.getElementById('edit-duur').value = klus.duur || '';
     document.getElementById('edit-budget').value = klus.budget;
+    document.getElementById('edit-werkelijk').value = klus.werkelijk !== null ? klus.werkelijk : '';
     document.getElementById('edit-uitvoerder').value = klus.uitvoerder;
     document.getElementById('edit-status').value = klus.status;
     document.getElementById('edit-notities').value = klus.notities || '';
@@ -283,6 +382,8 @@ editForm.addEventListener('submit', (e) => {
 
     if (klusIndex === -1) return;
 
+    const werkelijkValue = document.getElementById('edit-werkelijk').value;
+
     klussen[klusIndex] = {
         ...klussen[klusIndex],
         naam: document.getElementById('edit-naam').value.trim(),
@@ -290,6 +391,7 @@ editForm.addEventListener('submit', (e) => {
         einddatum: document.getElementById('edit-einddatum').value || null,
         duur: document.getElementById('edit-duur').value || null,
         budget: parseFloat(document.getElementById('edit-budget').value),
+        werkelijk: werkelijkValue ? parseFloat(werkelijkValue) : null,
         uitvoerder: document.getElementById('edit-uitvoerder').value.trim(),
         status: document.getElementById('edit-status').value,
         notities: document.getElementById('edit-notities').value.trim(),
@@ -299,6 +401,7 @@ editForm.addEventListener('submit', (e) => {
     saveKlussen();
     renderKlussen();
     updateStats();
+    updateBudgetOverview();
     closeEditModal();
 });
 

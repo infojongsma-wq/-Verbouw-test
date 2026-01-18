@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verbouwing Klussen Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Verbouwing Klussen Tracker</h1>
+            <p class="subtitle">Houd al je verbouwingsklussen bij</p>
+        </header>
+
+        <section class="form-section">
+            <h2>Nieuwe Klus Toevoegen</h2>
+            <form id="klus-form">
+                <div class="form-group">
+                    <label for="klus-naam">Klus Naam</label>
+                    <input type="text" id="klus-naam" required placeholder="Bijv. Badkamer tegelen">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="klus-datum">Datum</label>
+                        <input type="date" id="klus-datum" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="klus-budget">Budget (&euro;)</label>
+                        <input type="number" id="klus-budget" required min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="klus-uitvoerder">Wie doet de klus?</label>
+                    <input type="text" id="klus-uitvoerder" required placeholder="Bijv. Zelf, Aannemer Jan, etc.">
+                </div>
+
+                <div class="form-group">
+                    <label for="klus-status">Status</label>
+                    <select id="klus-status">
+                        <option value="gepland">Gepland</option>
+                        <option value="bezig">Bezig</option>
+                        <option value="afgerond">Afgerond</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="klus-notities">Notities (optioneel)</label>
+                    <textarea id="klus-notities" rows="3" placeholder="Extra opmerkingen..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Klus Toevoegen</button>
+            </form>
+        </section>
+
+        <section class="stats-section">
+            <div class="stat-card">
+                <h3>Totaal Budget</h3>
+                <p id="totaal-budget">&euro; 0,00</p>
+            </div>
+            <div class="stat-card">
+                <h3>Aantal Klussen</h3>
+                <p id="aantal-klussen">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Afgerond</h3>
+                <p id="afgerond-klussen">0</p>
+            </div>
+        </section>
+
+        <section class="filter-section">
+            <h2>Klussen Overzicht</h2>
+            <div class="filters">
+                <select id="filter-status">
+                    <option value="alle">Alle statussen</option>
+                    <option value="gepland">Gepland</option>
+                    <option value="bezig">Bezig</option>
+                    <option value="afgerond">Afgerond</option>
+                </select>
+                <select id="filter-sort">
+                    <option value="datum-asc">Datum (oplopend)</option>
+                    <option value="datum-desc">Datum (aflopend)</option>
+                    <option value="budget-asc">Budget (laag-hoog)</option>
+                    <option value="budget-desc">Budget (hoog-laag)</option>
+                </select>
+            </div>
+        </section>
+
+        <section class="klussen-section">
+            <div id="klussen-lijst" class="klussen-lijst">
+                <!-- Klussen worden hier dynamisch toegevoegd -->
+            </div>
+            <p id="geen-klussen" class="geen-klussen">Nog geen klussen toegevoegd. Voeg je eerste klus hierboven toe!</p>
+        </section>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Klus Bewerken</h2>
+            <form id="edit-form">
+                <input type="hidden" id="edit-id">
+
+                <div class="form-group">
+                    <label for="edit-naam">Klus Naam</label>
+                    <input type="text" id="edit-naam" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-datum">Datum</label>
+                        <input type="date" id="edit-datum" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-budget">Budget (&euro;)</label>
+                        <input type="number" id="edit-budget" required min="0" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-uitvoerder">Wie doet de klus?</label>
+                    <input type="text" id="edit-uitvoerder" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-status">Status</label>
+                    <select id="edit-status">
+                        <option value="gepland">Gepland</option>
+                        <option value="bezig">Bezig</option>
+                        <option value="afgerond">Afgerond</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-notities">Notities</label>
+                    <textarea id="edit-notities" rows="3"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Opslaan</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

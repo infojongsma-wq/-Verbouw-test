@@ -25,6 +25,11 @@ const budgetProgressFill = document.getElementById('budget-progress-fill');
 const uitgegvenCard = document.getElementById('uitgegeven-card');
 const resterendCard = document.getElementById('resterend-card');
 
+// Timeline elements
+const timelineHeader = document.getElementById('timeline-header');
+const timelineBody = document.getElementById('timeline-body');
+const geenTimeline = document.getElementById('geen-timeline');
+
 // Data storage
 let klussen = [];
 let totaalBudgetVerbouwing = 0;
@@ -34,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadKlussen();
     loadTotaalBudget();
     renderKlussen();
+    renderTimeline();
     updateStats();
     updateBudgetOverview();
     setDefaultDate();
@@ -102,6 +108,50 @@ function formatDate(dateString) {
     }).format(date);
 }
 
+// Format short date for timeline
+function formatShortDate(date) {
+    return new Intl.DateTimeFormat('nl-NL', {
+        day: 'numeric',
+        month: 'short'
+    }).format(date);
+}
+
+// Convert duur string to days
+function duurToDays(duur) {
+    if (!duur) return 1; // Default 1 dag
+
+    const duurMap = {
+        '1 dag': 1,
+        '2 dagen': 2,
+        '3 dagen': 3,
+        '4 dagen': 4,
+        '5 dagen': 5,
+        '1 week': 7,
+        '2 weken': 14,
+        '3 weken': 21,
+        '1 maand': 30,
+        '2 maanden': 60,
+        '3 maanden': 90
+    };
+
+    return duurMap[duur] || 1;
+}
+
+// Calculate end date based on start date and duration
+function calculateEndDate(klus) {
+    const startDate = new Date(klus.datum);
+
+    // Priority: 1. einddatum, 2. duur, 3. default 1 day
+    if (klus.einddatum) {
+        return new Date(klus.einddatum);
+    }
+
+    const days = duurToDays(klus.duur);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + days - 1);
+    return endDate;
+}
+
 // Add new klus
 klusForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -125,6 +175,7 @@ klusForm.addEventListener('submit', (e) => {
     klussen.push(klus);
     saveKlussen();
     renderKlussen();
+    renderTimeline();
     updateStats();
     updateBudgetOverview();
 
@@ -181,6 +232,138 @@ function renderKlussen() {
         const card = createKlusCard(klus);
         klussenLijst.appendChild(card);
     });
+}
+
+// Render timeline
+function renderTimeline() {
+    if (klussen.length === 0) {
+        timelineHeader.innerHTML = '';
+        timelineBody.innerHTML = '';
+        geenTimeline.classList.add('show');
+        return;
+    }
+
+    geenTimeline.classList.remove('show');
+
+    // Sort klussen by start date
+    const sortedKlussen = [...klussen].sort((a, b) => new Date(a.datum) - new Date(b.datum));
+
+    // Calculate timeline range
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let minDate = new Date(sortedKlussen[0].datum);
+    let maxDate = calculateEndDate(sortedKlussen[0]);
+
+    sortedKlussen.forEach(klus => {
+        const startDate = new Date(klus.datum);
+        const endDate = calculateEndDate(klus);
+
+        if (startDate < minDate) minDate = startDate;
+        if (endDate > maxDate) maxDate = endDate;
+    });
+
+    // Include today in range if not already
+    if (today < minDate) minDate = new Date(today);
+    if (today > maxDate) maxDate = new Date(today);
+
+    // Extend range by 1 month on each side for better visibility
+    minDate.setDate(1); // Start of month
+    maxDate.setMonth(maxDate.getMonth() + 1);
+    maxDate.setDate(0); // End of month
+
+    // Generate months for header
+    const months = [];
+    const currentMonth = new Date(minDate);
+    currentMonth.setDate(1);
+
+    while (currentMonth <= maxDate) {
+        months.push(new Date(currentMonth));
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+    }
+
+    // Calculate total days and pixels per day
+    const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
+    const pixelsPerDay = 4; // 4 pixels per day
+    const labelWidth = 150; // Width of klus label
+
+    // Render header
+    timelineHeader.innerHTML = `<div style="width: ${labelWidth}px; flex-shrink: 0;"></div>`;
+    months.forEach(month => {
+        const monthName = new Intl.DateTimeFormat('nl-NL', { month: 'short', year: 'numeric' }).format(month);
+        const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+        const isCurrentMonth = month.getMonth() === today.getMonth() && month.getFullYear() === today.getFullYear();
+
+        timelineHeader.innerHTML += `
+            <div class="timeline-month ${isCurrentMonth ? 'current' : ''}" style="width: ${daysInMonth * pixelsPerDay}px;">
+                ${monthName}
+            </div>
+        `;
+    });
+
+    // Render body with klussen
+    timelineBody.innerHTML = '';
+
+    sortedKlussen.forEach(klus => {
+        const startDate = new Date(klus.datum);
+        const endDate = calculateEndDate(klus);
+
+        // Calculate position and width
+        const startOffset = Math.floor((startDate - minDate) / (1000 * 60 * 60 * 24));
+        const duration = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+        const leftPosition = startOffset * pixelsPerDay;
+        const width = duration * pixelsPerDay;
+
+        const row = document.createElement('div');
+        row.className = 'timeline-row';
+
+        row.innerHTML = `
+            <div class="timeline-klus-label" title="${escapeHtml(klus.naam)}">${escapeHtml(klus.naam)}</div>
+            <div class="timeline-track" style="width: ${totalDays * pixelsPerDay}px;">
+                <div class="timeline-bar ${klus.status}"
+                     style="left: ${leftPosition}px; width: ${width}px;"
+                     onclick="openEditModal('${klus.id}')"
+                     title="${escapeHtml(klus.naam)}: ${formatShortDate(startDate)} - ${formatShortDate(endDate)}">
+                    <span class="timeline-bar-dates">${formatShortDate(startDate)} - ${formatShortDate(endDate)}</span>
+                </div>
+            </div>
+        `;
+
+        timelineBody.appendChild(row);
+    });
+
+    // Add today line
+    const todayOffset = Math.floor((today - minDate) / (1000 * 60 * 60 * 24));
+    if (todayOffset >= 0 && todayOffset <= totalDays) {
+        const todayLine = document.createElement('div');
+        todayLine.className = 'timeline-today-marker';
+        todayLine.style.cssText = `
+            position: absolute;
+            left: ${labelWidth + todayOffset * pixelsPerDay}px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #dc2626;
+            z-index: 5;
+        `;
+
+        const todayLabel = document.createElement('div');
+        todayLabel.style.cssText = `
+            position: absolute;
+            top: -18px;
+            left: -20px;
+            font-size: 0.7rem;
+            color: #dc2626;
+            font-weight: 600;
+            white-space: nowrap;
+        `;
+        todayLabel.textContent = 'Vandaag';
+        todayLine.appendChild(todayLabel);
+
+        timelineBody.style.position = 'relative';
+        timelineBody.appendChild(todayLine);
+    }
 }
 
 // Create klus card element
@@ -328,6 +511,7 @@ function deleteKlus(id) {
         klussen = klussen.filter(k => k.id !== id);
         saveKlussen();
         renderKlussen();
+        renderTimeline();
         updateStats();
         updateBudgetOverview();
     }
@@ -400,6 +584,7 @@ editForm.addEventListener('submit', (e) => {
 
     saveKlussen();
     renderKlussen();
+    renderTimeline();
     updateStats();
     updateBudgetOverview();
     closeEditModal();

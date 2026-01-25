@@ -597,3 +597,153 @@ filterSort.addEventListener('change', renderKlussen);
 // Make functions available globally for onclick handlers
 window.deleteKlus = deleteKlus;
 window.openEditModal = openEditModal;
+
+// Export to PDF function
+function exportToPDF() {
+    if (klussen.length === 0) {
+        alert('Er zijn geen klussen om te exporteren.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(13, 115, 119); // Petrol blue
+    doc.text('Verbouwing Klussen Overzicht', 14, 20);
+
+    // Date
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Gegenereerd op: ${new Date().toLocaleDateString('nl-NL', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })}`, 14, 28);
+
+    // Budget summary
+    const totaalBudgetKlussen = klussen.reduce((sum, k) => sum + k.budget, 0);
+    const totaalWerkelijk = klussen.reduce((sum, k) => sum + (k.werkelijk || 0), 0);
+    const aantalKlussen = klussen.length;
+    const aantalAfgerond = klussen.filter(k => k.status === 'afgerond').length;
+
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text('Samenvatting:', 14, 40);
+
+    doc.setFontSize(10);
+    doc.text(`Totaal Budget Verbouwing: ${formatCurrency(totaalBudgetVerbouwing)}`, 14, 48);
+    doc.text(`Totaal Budget Klussen: ${formatCurrency(totaalBudgetKlussen)}`, 14, 54);
+    doc.text(`Totaal Werkelijk Uitgegeven: ${formatCurrency(totaalWerkelijk)}`, 14, 60);
+    doc.text(`Aantal Klussen: ${aantalKlussen} (${aantalAfgerond} afgerond)`, 14, 66);
+
+    // Sort klussen by date for the table
+    const sortedKlussen = [...klussen].sort((a, b) => new Date(a.datum) - new Date(b.datum));
+
+    // Prepare table data
+    const tableData = sortedKlussen.map(klus => {
+        const startDate = new Date(klus.datum).toLocaleDateString('nl-NL');
+        const endDate = klus.einddatum
+            ? new Date(klus.einddatum).toLocaleDateString('nl-NL')
+            : (klus.duur ? `+${klus.duur}` : '-');
+
+        const budgetStatus = klus.werkelijk !== null
+            ? (klus.werkelijk > klus.budget ? 'Over' : 'OK')
+            : '-';
+
+        return [
+            klus.naam,
+            startDate,
+            endDate,
+            klus.duur || '-',
+            formatCurrency(klus.budget),
+            klus.werkelijk !== null ? formatCurrency(klus.werkelijk) : '-',
+            budgetStatus,
+            klus.uitvoerder,
+            klus.status.charAt(0).toUpperCase() + klus.status.slice(1)
+        ];
+    });
+
+    // Create table
+    doc.autoTable({
+        startY: 75,
+        head: [[
+            'Klus',
+            'Start',
+            'Eind',
+            'Duur',
+            'Budget',
+            'Werkelijk',
+            'Status €',
+            'Uitvoerder',
+            'Voortgang'
+        ]],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+            fillColor: [13, 115, 119], // Petrol blue
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 8
+        },
+        bodyStyles: {
+            fontSize: 8
+        },
+        columnStyles: {
+            0: { cellWidth: 30 }, // Klus
+            1: { cellWidth: 20 }, // Start
+            2: { cellWidth: 20 }, // Eind
+            3: { cellWidth: 18 }, // Duur
+            4: { cellWidth: 22, halign: 'right' }, // Budget
+            5: { cellWidth: 22, halign: 'right' }, // Werkelijk
+            6: { cellWidth: 15, halign: 'center' }, // Status €
+            7: { cellWidth: 25 }, // Uitvoerder
+            8: { cellWidth: 20 }  // Voortgang
+        },
+        didParseCell: function(data) {
+            // Color the budget status cell
+            if (data.column.index === 6 && data.section === 'body') {
+                if (data.cell.raw === 'Over') {
+                    data.cell.styles.textColor = [220, 38, 38]; // Red
+                    data.cell.styles.fontStyle = 'bold';
+                } else if (data.cell.raw === 'OK') {
+                    data.cell.styles.textColor = [20, 83, 45]; // Dark green
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+            // Color the voortgang cell
+            if (data.column.index === 8 && data.section === 'body') {
+                if (data.cell.raw === 'Afgerond') {
+                    data.cell.styles.textColor = [20, 83, 45]; // Dark green
+                } else if (data.cell.raw === 'Bezig') {
+                    data.cell.styles.textColor = [13, 115, 119]; // Petrol blue
+                }
+            }
+        },
+        margin: { left: 14, right: 14 }
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(
+            `Pagina ${i} van ${pageCount}`,
+            doc.internal.pageSize.width / 2,
+            doc.internal.pageSize.height - 10,
+            { align: 'center' }
+        );
+    }
+
+    // Save the PDF
+    const filename = `verbouwing-overzicht-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
+}
+
+// Make export function available globally
+window.exportToPDF = exportToPDF;

@@ -606,141 +606,121 @@ function exportToPDF() {
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 14;
 
-    // Title
-    doc.setFontSize(20);
-    doc.setTextColor(13, 115, 119); // Petrol blue
-    doc.text('Verbouwing Klussen Overzicht', 14, 20);
+    // ---- Header ----
+    doc.setFillColor(13, 115, 119); // Petrol blue
+    doc.rect(0, 0, pageWidth, 30, 'F');
 
-    // Date
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Gegenereerd op: ${new Date().toLocaleDateString('nl-NL', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    })}`, 14, 28);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Verbouwing Klussen Overzicht', margin, 13);
 
-    // Budget summary
-    const totaalBudgetKlussen = klussen.reduce((sum, k) => sum + k.budget, 0);
-    const totaalWerkelijk = klussen.reduce((sum, k) => sum + (k.werkelijk || 0), 0);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+        `Gegenereerd op ${new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+        margin, 22
+    );
+
+    // ---- Samenvatting ----
     const aantalKlussen = klussen.length;
     const aantalAfgerond = klussen.filter(k => k.status === 'afgerond').length;
+    const aantalBezig = klussen.filter(k => k.status === 'bezig').length;
+    const aantalGepland = klussen.filter(k => k.status === 'gepland').length;
 
-    doc.setFontSize(12);
-    doc.setTextColor(0);
-    doc.text('Samenvatting:', 14, 40);
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(9);
+    doc.text(
+        `${aantalKlussen} klussen totaal  ·  ${aantalAfgerond} afgerond  ·  ${aantalBezig} bezig  ·  ${aantalGepland} gepland`,
+        pageWidth - margin,
+        22,
+        { align: 'right' }
+    );
 
-    doc.setFontSize(10);
-    doc.text(`Totaal Budget Verbouwing: ${formatCurrency(totaalBudgetVerbouwing)}`, 14, 48);
-    doc.text(`Totaal Budget Klussen: ${formatCurrency(totaalBudgetKlussen)}`, 14, 54);
-    doc.text(`Totaal Werkelijk Uitgegeven: ${formatCurrency(totaalWerkelijk)}`, 14, 60);
-    doc.text(`Aantal Klussen: ${aantalKlussen} (${aantalAfgerond} afgerond)`, 14, 66);
-
-    // Sort klussen by date for the table
+    // ---- Tabel ----
     const sortedKlussen = [...klussen].sort((a, b) => new Date(a.datum) - new Date(b.datum));
 
-    // Prepare table data
-    const tableData = sortedKlussen.map(klus => {
-        const startDate = new Date(klus.datum).toLocaleDateString('nl-NL');
-        const endDate = klus.einddatum
-            ? new Date(klus.einddatum).toLocaleDateString('nl-NL')
-            : (klus.duur ? `+${klus.duur}` : '-');
+    const statusLabel = { gepland: 'Gepland', bezig: 'Bezig', afgerond: 'Afgerond' };
+    const statusKleur = {
+        gepland: [107, 114, 128],   // grijs
+        bezig:   [13, 115, 119],    // petrol
+        afgerond:[20, 83, 45]       // donkergroen
+    };
 
-        const budgetStatus = klus.werkelijk !== null
-            ? (klus.werkelijk > klus.budget ? 'Over' : 'OK')
-            : '-';
+    const tableData = sortedKlussen.map((klus, i) => {
+        const startDate = new Date(klus.datum).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+        const eindDatum = calculateEndDate(klus);
+        const endDate = eindDatum.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+        const duurLabel = klus.duur ? ` (${klus.duur})` : '';
 
         return [
+            i + 1,
             klus.naam,
-            startDate,
-            endDate,
-            klus.duur || '-',
-            formatCurrency(klus.budget),
-            klus.werkelijk !== null ? formatCurrency(klus.werkelijk) : '-',
-            budgetStatus,
+            `${startDate}\n${endDate}${duurLabel}`,
             klus.uitvoerder,
-            klus.status.charAt(0).toUpperCase() + klus.status.slice(1)
+            statusLabel[klus.status] || klus.status,
+            klus.notities || ''
         ];
     });
 
-    // Create table
     doc.autoTable({
-        startY: 75,
-        head: [[
-            'Klus',
-            'Start',
-            'Eind',
-            'Duur',
-            'Budget',
-            'Werkelijk',
-            'Status €',
-            'Uitvoerder',
-            'Voortgang'
-        ]],
+        startY: 36,
+        head: [['#', 'Klus', 'Periode', 'Uitvoerder', 'Voortgang', 'Opmerkingen']],
         body: tableData,
-        theme: 'striped',
+        theme: 'grid',
         headStyles: {
-            fillColor: [13, 115, 119], // Petrol blue
+            fillColor: [20, 83, 45],   // donkergroen
             textColor: 255,
             fontStyle: 'bold',
-            fontSize: 8
+            fontSize: 9,
+            cellPadding: 4
         },
         bodyStyles: {
-            fontSize: 8
+            fontSize: 9,
+            cellPadding: 4,
+            valign: 'top',
+            textColor: [30, 30, 30]
+        },
+        alternateRowStyles: {
+            fillColor: [245, 250, 248]
         },
         columnStyles: {
-            0: { cellWidth: 30 }, // Klus
-            1: { cellWidth: 20 }, // Start
-            2: { cellWidth: 20 }, // Eind
-            3: { cellWidth: 18 }, // Duur
-            4: { cellWidth: 22, halign: 'right' }, // Budget
-            5: { cellWidth: 22, halign: 'right' }, // Werkelijk
-            6: { cellWidth: 15, halign: 'center' }, // Status €
-            7: { cellWidth: 25 }, // Uitvoerder
-            8: { cellWidth: 20 }  // Voortgang
+            0: { cellWidth: 8,  halign: 'center', fontStyle: 'bold' },
+            1: { cellWidth: 42, fontStyle: 'bold' },
+            2: { cellWidth: 38 },
+            3: { cellWidth: 32 },
+            4: { cellWidth: 24, halign: 'center' },
+            5: { cellWidth: 'auto' }
         },
-        didParseCell: function(data) {
-            // Color the budget status cell
-            if (data.column.index === 6 && data.section === 'body') {
-                if (data.cell.raw === 'Over') {
-                    data.cell.styles.textColor = [220, 38, 38]; // Red
-                    data.cell.styles.fontStyle = 'bold';
-                } else if (data.cell.raw === 'OK') {
-                    data.cell.styles.textColor = [20, 83, 45]; // Dark green
-                    data.cell.styles.fontStyle = 'bold';
-                }
-            }
-            // Color the voortgang cell
-            if (data.column.index === 8 && data.section === 'body') {
-                if (data.cell.raw === 'Afgerond') {
-                    data.cell.styles.textColor = [20, 83, 45]; // Dark green
-                } else if (data.cell.raw === 'Bezig') {
-                    data.cell.styles.textColor = [13, 115, 119]; // Petrol blue
-                }
+        didParseCell: function (data) {
+            if (data.column.index === 4 && data.section === 'body') {
+                const raw = data.cell.raw;
+                const kleur = raw === 'Afgerond' ? statusKleur.afgerond
+                            : raw === 'Bezig'    ? statusKleur.bezig
+                            : statusKleur.gepland;
+                data.cell.styles.textColor = kleur;
+                data.cell.styles.fontStyle = 'bold';
             }
         },
-        margin: { left: 14, right: 14 }
+        margin: { left: margin, right: margin }
     });
 
-    // Footer
+    // ---- Footer op elke pagina ----
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
+        doc.setDrawColor(200);
+        doc.line(margin, doc.internal.pageSize.height - 14, pageWidth - margin, doc.internal.pageSize.height - 14);
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text(
-            `Pagina ${i} van ${pageCount}`,
-            doc.internal.pageSize.width / 2,
-            doc.internal.pageSize.height - 10,
-            { align: 'center' }
-        );
+        doc.text('Verbouwing Klussen Tracker', margin, doc.internal.pageSize.height - 8);
+        doc.text(`Pagina ${i} van ${pageCount}`, pageWidth - margin, doc.internal.pageSize.height - 8, { align: 'right' });
     }
 
-    // Save the PDF
     const filename = `verbouwing-overzicht-${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(filename);
 }
